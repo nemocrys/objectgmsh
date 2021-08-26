@@ -1,0 +1,2 @@
+include versioneer.py
+include objectgmsh/_version.py
