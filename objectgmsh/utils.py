@@ -22,7 +22,6 @@ def cylinder(x, y, z, r, h, dim):
         int: tag
     """
     if dim == 2:
-        factory.add
         return factory.addRectangle(x, y, z, r, h)
     if dim == 3:
         return factory.addCylinder(x, y, z, 0, h, 0, r)
