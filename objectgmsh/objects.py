@@ -143,6 +143,8 @@ class Model:
         Args:
             shape (Shape): shape object to be removed
         """
+        factory.remove(shape.dimtags)
+        factory.synchronize()
         self._shapes.remove(shape)
 
     def write_msh(self, file_name):
@@ -255,6 +257,18 @@ class Shape:
         return [
             x for x in bndry if bndry.count(x) == 1
         ]  # exclude boundaries inside shape
+    
+    @property
+    def all_boundaries(self):
+        """Boundaries of the shape (dimension: dimension of shape - 1).
+
+        Returns:
+            list: Tags of the internal and external boundaries of the shape.
+        """
+        bndry = []
+        for geo_id in self.geo_ids:
+            bndry += get_boundaries(self.dim, geo_id)
+        return bndry
 
     @property
     def bounding_box(self):
@@ -426,13 +440,18 @@ class MeshControl:
         self._restricted_field = -1
         self.faces_list = []
         self.edges_list = []
+        self.volumes_list = []
         model.mesh_restrictions.append(self)
 
     def restrict_to_shapes(self, shapes):
         for shape in shapes:
+            if shape.dim == 3:
+                self.volumes_list += shape.geo_ids
+                self.faces_list += shape.all_boundaries
+                self.edges_list += []  # TODO
             if shape.dim == 2:
                 self.faces_list += shape.geo_ids
-                self.edges_list += shape.boundaries
+                self.edges_list += shape.all_boundaries
             if shape.dim == 1:
                 self.edges_list += shape.geo_ids
 
@@ -442,10 +461,14 @@ class MeshControl:
     def restrict_to_edges(self, edges):
         self.edges_list += edges
 
-    def restrict(self, shapes, faces, edges):
+    def restrict_to_volumes(self, volumes):
+        self.volumes_list += volumes
+
+    def restrict(self, shapes, faces, edges, volumes):
         self.restrict_to_shapes(shapes)
         self.restrict_to_faces(faces)
         self.restrict_to_edges(edges)
+        self.restrict_to_volumes(volumes)
 
     @property
     def field(self):
@@ -458,15 +481,16 @@ class MeshControl:
             field.setNumber(self._restricted_field, "IField", self._field)
             field.setNumbers(self._restricted_field, "FacesList", self.faces_list)
             field.setNumbers(self._restricted_field, "EdgesList", self.edges_list)
+            field.setNumbers(self._restricted_field, "VolumesList", self.volumes_list)
             return self._restricted_field
 
 
 class MeshControlConstant(MeshControl):
-    def __init__(self, model, char_length, shapes=[], surfaces=[], edges=[]):
+    def __init__(self, model, char_length, shapes=[], surfaces=[], edges=[], volumes=[]):
         super().__init__(model)
         self._field = field.add("MathEval")
         field.setString(self._field, "F", str(char_length))
-        self.restrict(shapes, surfaces, edges)
+        self.restrict(shapes, surfaces, edges, volumes)
 
 
 class MeshControlLinear(MeshControl):
@@ -482,6 +506,7 @@ class MeshControlLinear(MeshControl):
         shapes=[],
         surfaces=[],
         edges=[],
+        volumes=[],
     ):
         super().__init__(model)
 
@@ -492,19 +517,22 @@ class MeshControlLinear(MeshControl):
             edg = shape.geo_ids
         elif shape.dim == 2:
             edg = shape.boundaries
-        else:
-            raise GmshError("This is only possible for shapes of dimension 1 or 2.")
+        elif shape.dim == 3:
+            srf = shape.boundaries
 
         dist_field = field.add("Distance")
         field.setNumber(dist_field, "NNodesByEdge", NNodesByEdge)
-        field.setNumbers(dist_field, "EdgesList", edg)
+        if shape.dim == 3:
+            field.setNumbers(dist_field, "FacesList", srf)
+        else:
+            field.setNumbers(dist_field, "EdgesList", edg)
         self._field = field.add("Threshold")
         field.setNumber(self._field, "IField", dist_field)
         field.setNumber(self._field, "LcMin", min_char_length)
         field.setNumber(self._field, "LcMax", max_char_length)
         field.setNumber(self._field, "DistMin", dist_start)
         field.setNumber(self._field, "DistMax", dist_end)
-        self.restrict(shapes, surfaces, edges)
+        self.restrict(shapes, surfaces, edges, volumes)
 
 
 class MeshControlExponential(MeshControl):
@@ -519,6 +547,7 @@ class MeshControlExponential(MeshControl):
         shapes=[],
         surfaces=[],
         edges=[],
+        volumes=[],
     ):
         super().__init__(model)
 
@@ -526,12 +555,15 @@ class MeshControlExponential(MeshControl):
             edg = shape.geo_ids
         elif shape.dim == 2:
             edg = shape.boundaries
-        else:
-            raise GmshError("This is only possible for shapes of dimension 1 or 2.")
+        elif shape.dim == 3:
+            srf = shape.boundaries
 
         dist_field = gmsh.model.mesh.field.add("Distance")
         field.setNumber(dist_field, "NNodesByEdge", NNodesByEdge)
-        field.setNumbers(dist_field, "EdgesList", edg)
+        if shape.dim == 3:
+            field.setNumbers(dist_field, "FacesList", srf)
+        else:
+            field.setNumbers(dist_field, "EdgesList", edg)
         self._field = field.add("MathEval")
         field.setString(self._field, "F", f"F{dist_field}^{exp}*{fact}+{char_length}")
-        self.restrict(shapes, surfaces, edges)
+        self.restrict(shapes, surfaces, edges, volumes)
