@@ -448,7 +448,10 @@ class MeshControl:
             if shape.dim == 3:
                 self.volumes_list += shape.geo_ids
                 self.faces_list += shape.all_boundaries
-                self.edges_list += []  # TODO
+                for face in shape.all_boundaries:
+                    dim_tags = gmsh.model.getBoundary([(2, face)], False, False, False)
+                    for dim_tag in dim_tags:
+                        self.edges_list.append(dim_tag[1])
             if shape.dim == 2:
                 self.faces_list += shape.geo_ids
                 self.edges_list += shape.all_boundaries
