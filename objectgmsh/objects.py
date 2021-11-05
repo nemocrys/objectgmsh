@@ -47,6 +47,7 @@ class Model:
             ["-noenv"]
         )  # see https://gitlab.onelab.info/gmsh/gmsh/-/issues/1142 for details about -noenv option
         gmsh.model.add(name)
+        gmsh.option.setNumber("Geometry.OCCBoundsUseStl", 1)  # for better boundary detection, see https://gitlab.onelab.info/gmsh/gmsh/-/issues/1619
 
     # TODO allow with / close -> implement __enter__, __exit__
     def close_gmsh(self):
@@ -209,10 +210,12 @@ class Shape:
     def __isub__(self, other):
         if type(other) is list:
             self.geo_ids = [x for x in self.geo_ids if x not in other]
-        if type(other) is int and other in self.geo_ids:
+        elif type(other) is int and other in self.geo_ids:
             self.geo_ids.remove(other)
-        if type(other) is Shape:
+        elif type(other) is Shape:
             self.geo_ids = [x for x in self.geo_ids if x not in other.geo_ids]
+        else:
+            raise GmshError("substraction doesn't work here")
         return self
 
     @property
