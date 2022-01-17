@@ -4,3 +4,4 @@ objectgmsh.egg-info/
 doc/_build/
 build/
 dist/
+*.msh

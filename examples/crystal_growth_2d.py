@@ -1,27 +1,3 @@
-# objectmsh
-Object oriented Gmsh modeling.
-
-## Project description
-
-This tool provides some utilities for the [gmsh python API](https://pypi.org/project/gmsh/) that are especially helpful when you're working on complex geometries using the Open CASCADE kernel.
-
-## Installation
-
-The latest release can be installed using pip:
-
-```
-pip install objectgmsh
-```
-
-## Basic principle
-
-objectgmsh bases on a *Model* class implementing an interface to the main Gmsh functionality, and a *Shape* class used to access information about the geometry, e.g., the IDs of the interface between two bodies. Furthermore, several classes for simplified control of mesh sizes are provided.
-
-objectgmsh is just a wrapper for the gmsh python API, and all gmsh commands are still working "as usual". However, in complex geometries, it highly reduces the modelling effort.
-
-## Example
-
-```Python
 import gmsh
 from objectgmsh import Model, Shape, MeshControlConstant, MeshControlExponential, cut
 
@@ -86,24 +62,3 @@ MeshControlExponential(
 model.generate_mesh()
 model.show()
 model.write_msh("crystal-growth-2D.msh")
-```
-
-This is still under construction. Additional examples, e.g., with more complex geometries or 3D modelling are planned.
-
-## Documentation
-
-Documentation is still under construction.
-
-## Support
-
-In case of questions just open an issue or contact Arved Enders-Seidlitz.
-
-## Acknowledgements
-
-[This project](https://www.researchgate.net/project/NEMOCRYS-Next-Generation-Multiphysical-Models-for-Crystal-Growth-Processes) has received funding from the European Research Council (ERC) under the European Union's Horizon 2020 research and innovation programme (grant agreement No 851768).
-
-<img src="https://raw.githubusercontent.com/nemocrys/objectgmsh/master/EU-ERC.png">
-
-## Contribution
-
-Any help to improve this package is very welcome!

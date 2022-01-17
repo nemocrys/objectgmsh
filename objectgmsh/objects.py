@@ -100,12 +100,14 @@ class Model:
         for dim in dimensions:
             gmsh.model.mesh.setSize(gmsh.model.getEntities(dim), char_length)
 
-    def generate_mesh(self, dimension=2, order=1, size_factor=1, smoothing=1):
+    def generate_mesh(self, dimension=2, order=1, size_factor=1, smoothing=1, optimize=None):
         self._apply_restrictions()
         gmsh.option.setNumber("Mesh.CharacteristicLengthFactor", size_factor)
         gmsh.option.setNumber("Mesh.Smoothing", smoothing)
         gmsh.model.mesh.generate(dimension)
         gmsh.model.mesh.setOrder(order)
+        if optimize is not None:
+            gmsh.model.mesh.optimize(optimize)
 
     def get_shapes(self, dimension, name=""):
         """Get shapes of certain dimension, optionally filtered by name.
@@ -138,13 +140,13 @@ class Model:
         #     raise GmshError('The model is physical. Synchronizing would break it.')
         factory.synchronize()
 
-    def remove_shape(self, shape):
+    def remove_shape(self, shape, recursive=True):
         """Remove shape from model.
 
         Args:
             shape (Shape): shape object to be removed
         """
-        factory.remove(shape.dimtags)
+        factory.remove(shape.dimtags, recursive=recursive)
         factory.synchronize()
         self._shapes.remove(shape)
 
