@@ -10,7 +10,7 @@ factory = gmsh.model.occ
 field = gmsh.model.mesh.field
 
 
-class GmshError(Exception):
+class ObjectgmshError(Exception):
     pass
 
 
@@ -47,10 +47,13 @@ class Model:
             ["-noenv"]
         )  # see https://gitlab.onelab.info/gmsh/gmsh/-/issues/1142 for details about -noenv option
         gmsh.model.add(name)
-        gmsh.option.setNumber("Geometry.OCCBoundsUseStl", 1)  # for better boundary detection, see https://gitlab.onelab.info/gmsh/gmsh/-/issues/1619
+        gmsh.option.setNumber(
+            "Geometry.OCCBoundsUseStl", 1
+        )  # for better boundary detection, see https://gitlab.onelab.info/gmsh/gmsh/-/issues/1619
 
     # TODO allow with / close -> implement __enter__, __exit__
     def close_gmsh(self):
+        """Call gmsh.finalize()."""
         gmsh.finalize()
 
     def __getitem__(self, name):
@@ -68,8 +71,13 @@ class Model:
         raise GeometryError(f"Shape {name} does not exist.")
 
     def __repr__(self):
+        """Get a summary of the model.
+
+        Returns:
+            str: A summary of the shapes in the model.
+        """
         shapes = [s.name for s in self._shapes]
-        return f"Gmsh model created with pyelmer.\nShapes: {shapes}"
+        return f"Gmsh model created with objectgmsh.\nShapes: {shapes}"
 
     def show(self):
         """Run gmsh GUI."""
@@ -92,15 +100,39 @@ class Model:
         field.setAsBackgroundMesh(self.min_field)
 
     def deactivate_characteristic_length(self):
+        """Don't take any characteristic length into account. Call this
+        when defining the mesh size using MeshControl / the parameter
+        mesh_size in the shapes.
+        """
         gmsh.option.setNumber("Mesh.CharacteristicLengthFromPoints", 0)
         gmsh.option.setNumber("Mesh.CharacteristicLengthFromCurvature", 0)
         gmsh.option.setNumber("Mesh.CharacteristicLengthExtendFromBoundary", 0)
 
     def set_characteristic_length(self, char_length, dimensions=[0]):
+        """Set characteristic length for all entities (of a dimension).
+
+        Args:
+            char_length (float): characteristic length
+            dimensions (list, optional): Dimensions to apply the
+                characteristic lenght. Defaults to [0].
+        """
         for dim in dimensions:
             gmsh.model.mesh.setSize(gmsh.model.getEntities(dim), char_length)
 
-    def generate_mesh(self, dimension=2, order=1, size_factor=1, smoothing=1, optimize=None):
+    def generate_mesh(
+        self, dimension=2, order=1, size_factor=1, smoothing=1, optimize=None
+    ):
+        """Generate the mesh.
+
+        Args:
+            dimension (int, optional): Dimension of mesh. Defaults to 2.
+            order (int, optional): Element order. Defaults to 1.
+            size_factor (int, optional): Increase / decrease mesh size
+                by a factor. Defaults to 1.
+            smoothing (int, optional): Mesh smoothing. Defaults to 1.
+            optimize (str, optional): Mesh optimization algorithm.
+                Defaults to None.
+        """
         self._apply_restrictions()
         gmsh.option.setNumber("Mesh.CharacteristicLengthFactor", size_factor)
         gmsh.option.setNumber("Mesh.Smoothing", smoothing)
@@ -127,17 +159,17 @@ class Model:
         """Convert all shapes into physical groups.
 
         Raises:
-            GmshError: If this function is called more than once.
+            ObjectgmshError: If this function is called more than once.
         """
         if self._physical:
-            raise GmshError("This model is already physical.")
+            raise ObjectgmshError("This model is already physical.")
         for shape in self._shapes:
             shape._make_physical()
 
     def synchronize(self):
         """Synchronize gmsh geometry kernel."""
         # if self._physical:
-        #     raise GmshError('The model is physical. Synchronizing would break it.')
+        #     raise ObjectgmshError('The model is physical. Synchronizing would break it.')
         factory.synchronize()
 
     def remove_shape(self, shape, recursive=True):
@@ -151,9 +183,17 @@ class Model:
         self._shapes.remove(shape)
 
     def write_msh(self, file_name):
+        """Write mesh to file.
+
+        Args:
+            file_name (str): File name (.msh).
+        """
         gmsh.write(file_name)
 
     def set_const_mesh_sizes(self):
+        """Create mesh controls for all shapes where the parameter
+        shape.mesh_size is set.
+        """
         for shape in self._shapes:
             if shape.mesh_size == 0:
                 print(
@@ -178,15 +218,13 @@ class Shape:
     A shape may consist of multiple gmsh entities of the same dimension.
     """
 
-    # TODO point select of geometries / boundaries / ...?
-
     def __init__(self, model, dim, name, geo_ids=[]):
         """Create a shape.
 
         Args:
-            model (Model): Gmsh model to which the shape will be added
-            dim (int): Dimension of the shape
-            name (str): Name of the shape
+            model (Model): Gmsh model to which the shape will be added.
+            dim (int): Dimension of the shape.
+            name (str): Name of the shape.
             geo_ids (list, optional): Geometry IDs of the shape.
                                       They may be added later.
         """
@@ -217,7 +255,7 @@ class Shape:
         elif type(other) is Shape:
             self.geo_ids = [x for x in self.geo_ids if x not in other.geo_ids]
         else:
-            raise GmshError("substraction doesn't work here")
+            raise ObjectgmshError("substraction doesn't work here")
         return self
 
     @property
@@ -262,13 +300,14 @@ class Shape:
         return [
             x for x in bndry if bndry.count(x) == 1
         ]  # exclude boundaries inside shape
-    
+
     @property
     def all_boundaries(self):
         """Boundaries of the shape (dimension: dimension of shape - 1).
 
         Returns:
-            list: Tags of the internal and external boundaries of the shape.
+            list: Tags of the internal and external boundaries of the
+                shape.
         """
         bndry = []
         for geo_id in self.geo_ids:
@@ -296,7 +335,8 @@ class Shape:
 
     def set_interface(self, shape):
         """Get to know the other shape and remove duplicate boundaries.
-        Only required if shapes are in contact with each other.
+        Only required if shapes are in contact with each other (calls
+        fragment function).
 
         Args:
             shape (Shape): Other shape that is in contact with this.
@@ -395,6 +435,11 @@ class Shape:
 
     @property
     def top_boundary(self):
+        """Boundary with highest y coordinate.
+
+        Returns:
+            int: Tag of the boundary.
+        """
         [x_min, _, z_min, x_max, y_max, z_max] = self.bounding_box
         return self.get_boundaries_in_box(
             [x_min, x_max], [y_max, y_max], [z_min, z_max], one_only=True
@@ -402,6 +447,11 @@ class Shape:
 
     @property
     def bottom_boundary(self):
+        """Boundary with lowest y coordinate.
+
+        Returns:
+            int: Tag of the boundary.
+        """
         [x_min, y_min, z_min, x_max, _, z_max] = self.bounding_box
         return self.get_boundaries_in_box(
             [x_min, x_max], [y_min, y_min], [z_min, z_max], one_only=True
@@ -409,6 +459,11 @@ class Shape:
 
     @property
     def left_boundary(self):
+        """Boundary with lowest y coordinate.
+
+        Returns:
+            int: Tag of the boundary.
+        """
         [x_min, y_min, z_min, _, y_max, z_max] = self.bounding_box
         return self.get_boundaries_in_box(
             [x_min, x_min], [y_min, y_max], [z_min, z_max], one_only=True
@@ -416,6 +471,11 @@ class Shape:
 
     @property
     def right_boundary(self):
+        """Boundary with highest x coordinate.
+
+        Returns:
+            int: Tag of the boundary.
+        """
         [_, y_min, z_min, x_max, y_max, z_max] = self.bounding_box
         return self.get_boundaries_in_box(
             [x_max, x_max], [y_min, y_max], [z_min, z_max], one_only=True
@@ -427,7 +487,7 @@ class Shape:
 
         Args:
             char_length (float): Characteristic length for the mesh
-                                 generation
+                                 generation.
         """
         boundary = gmsh.model.getBoundary(self.dimtags, False, False, True)
         gmsh.model.mesh.setSize(boundary, char_length)
@@ -449,6 +509,11 @@ class MeshControl:
         model.mesh_restrictions.append(self)
 
     def restrict_to_shapes(self, shapes):
+        """Apply the mesh control to the given shapes only.
+
+        Args:
+            shapes (list): List of Shape objects.
+        """
         for shape in shapes:
             if shape.dim == 3:
                 self.volumes_list += shape.geo_ids
@@ -464,15 +529,38 @@ class MeshControl:
                 self.edges_list += shape.geo_ids
 
     def restrict_to_faces(self, faces):
+        """Apply the mesh control to the given faces only.
+
+        Args:
+            faces (list): List of faces for restriction (gmsh id).
+        """
         self.faces_list += faces
 
     def restrict_to_edges(self, edges):
+        """Apply the mesh control to the given edges only.
+
+        Args:
+            edges (list): List of edges for restriction (gmsh id).
+        """
         self.edges_list += edges
 
     def restrict_to_volumes(self, volumes):
+        """Apply the mesh control to the given volumes only.
+
+        Args:
+            volumes (list): List of volumes for restriction (gmsh id).
+        """
         self.volumes_list += volumes
 
     def restrict(self, shapes, faces, edges, volumes):
+        """Apply the mesh control to given parts of the model only
+
+        Args:
+            shapes (list): List of Shape objects.
+            faces (list): List of faces for restriction (gmsh id).
+            edges (list): List of edges for restriction (gmsh id).
+            volumes (list): List of volumes for restriction (gmsh id).
+        """
         self.restrict_to_shapes(shapes)
         self.restrict_to_faces(faces)
         self.restrict_to_edges(edges)
@@ -482,7 +570,7 @@ class MeshControl:
     def field(self):
         if self.faces_list == [] and self.edges_list == []:
             if self._field == -1:
-                raise GmshError("Field not set.")
+                raise ObjectgmshError("Field not set.")
             return self._field
         else:
             self._restricted_field = field.add("Restrict")
@@ -494,7 +582,25 @@ class MeshControl:
 
 
 class MeshControlConstant(MeshControl):
-    def __init__(self, model, char_length, shapes=[], surfaces=[], edges=[], volumes=[]):
+    """Mesh control region with constant mesh size."""
+
+    def __init__(
+        self, model, char_length, shapes=[], surfaces=[], edges=[], volumes=[]
+    ):
+        """Create a mesh control of constant size.
+
+        Args:
+            model (Model): Objectgmsh model
+            char_length (float): Characteristic length.
+            shapes (list, optional): Shapes, to which the mesh control
+                is restricted. Defaults to [].
+            surfaces (list, optional): Surfaces (gmsh id) to which the
+                mesh control is restricted. Defaults to [].
+            edges (list, optional): Edges (gmsh id) to which the mesh
+                control is restricted. Defaults to [].
+            volumes (list, optional): Volumes (gmsh id) to which the
+                mesh control is restricted. Defaults to [].
+        """
         super().__init__(model)
         self._field = field.add("MathEval")
         field.setString(self._field, "F", str(char_length))
@@ -502,6 +608,8 @@ class MeshControlConstant(MeshControl):
 
 
 class MeshControlLinear(MeshControl):
+    """Mesh control region with linear increasing mesh size."""
+
     def __init__(
         self,
         model,
@@ -516,6 +624,29 @@ class MeshControlLinear(MeshControl):
         edges=[],
         volumes=[],
     ):
+        """Create a mesh control of linear increasing size.
+
+        Args:
+            model (Model): Objectgmsh model.
+            shape (Shape): Shape that is the starting point of the
+                linearly increasing mesh size.
+            min_char_length (float): Minimum mesh size
+            max_char_length (float): Maximum mesh size
+            dist_start (float, optional): Distance from base shape where
+                mesh size starts growing. Defaults to 0.
+            dist_end (float, optional): Distance from base shape where
+                mesh size stops growing. Defaults to None.
+            NNodesByEdge (int, optional): Sampling rate.
+                Defaults to 1000.
+            shapes (list, optional): Shapes, to which the mesh control
+                is restricted. Defaults to [].
+            surfaces (list, optional): Surfaces (gmsh id) to which the
+                mesh control is restricted. Defaults to [].
+            edges (list, optional): Edges (gmsh id) to which the mesh
+                control is restricted. Defaults to [].
+            volumes (list, optional): Volumes (gmsh id) to which the
+                mesh control is restricted. Defaults to [].
+        """
         super().__init__(model)
 
         if dist_end is None:
@@ -544,6 +675,8 @@ class MeshControlLinear(MeshControl):
 
 
 class MeshControlExponential(MeshControl):
+    """Mesh control region with exponentially increasing mesh size."""
+
     def __init__(
         self,
         model,
@@ -557,6 +690,28 @@ class MeshControlExponential(MeshControl):
         edges=[],
         volumes=[],
     ):
+        """Create a mesh control of exponentially increasing size:
+        mesh_size = char_length + fact * distance ^ exp
+
+        Args:
+            model (Model): Objectgmsh model.
+            shape (Shape): Shape that is the starting point of the
+                linearly increasing mesh size.
+            char_length (float): Characteristic length at zero distance.
+            exp (float, optional): Exponent for distance. Defaults to 1.8.
+            fact (float, optional): Factor in front of distance.
+                Defaults to 1.
+            NNodesByEdge (int, optional): Sampling rate.
+                Defaults to 1000.
+            shapes (list, optional): Shapes, to which the mesh control
+                is restricted. Defaults to [].
+            surfaces (list, optional): Surfaces (gmsh id) to which the
+                mesh control is restricted. Defaults to [].
+            edges (list, optional): Edges (gmsh id) to which the mesh
+                control is restricted. Defaults to [].
+            volumes (list, optional): Volumes (gmsh id) to which the
+                mesh control is restricted. Defaults to [].
+        """
         super().__init__(model)
 
         if shape.dim == 1:

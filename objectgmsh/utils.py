@@ -1,4 +1,4 @@
-"""General utility functions for the Gmsh API."""
+"""Collection of utility functions for simplification of the Gmsh API."""
 
 import gmsh
 import numpy as np
@@ -323,6 +323,18 @@ def restricted_const_field(surf_tag, lc, NNodesByEdge=1000):
 
 
 def cut(obj_dimtags, tool_dimtags, remove_tool=True):
+    """Cut one object out of the other.
+
+    Args:
+        obj_dimtags (list): List of dimtags - object to be cut.
+        tool_dimtags (list): List of dimtags - object that is cut out.
+        remove_tool (bool, optional): Remove tool after cutting.
+            Defaults to True.
+
+    Returns:
+        List: Tags of new object.
+    """
     factory.synchronize()
-    out = factory.cut(obj_dimtags, tool_dimtags, removeTool=remove_tool)
-    return [dimtag[1] for dimtag in out[0]]
+    return [
+        x[1] for x in factory.cut(obj_dimtags, tool_dimtags, removeTool=remove_tool)[0]
+    ]
