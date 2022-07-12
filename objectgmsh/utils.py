@@ -2,6 +2,7 @@
 
 import gmsh
 import numpy as np
+from sympy import factor
 
 factory = gmsh.model.occ
 field = gmsh.model.mesh.field
@@ -338,3 +339,61 @@ def cut(obj_dimtags, tool_dimtags, remove_tool=True):
     return [
         x[1] for x in factory.cut(obj_dimtags, tool_dimtags, removeTool=remove_tool)[0]
     ]
+
+
+def make_wedge(shape, angle=5):
+    """Convert a 2D shape into a 3D wedge.
+
+    Args:
+        shape (Shape): Shape object.
+        angle (float, optional): Wedge angle. Defaults to 5.
+
+    Returns:
+        Shape: Modified 3D wedge shape object.
+    """
+    dimtags = factory.revolve(
+        shape.dimtags,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        angle * np.pi / 180,
+        numElements=[1],
+        recombine=True,
+    )
+    shape.geo_ids = []
+    shape.dim = 3
+    print(shape.name, dimtags)
+    for dimtag in dimtags:
+        if dimtag[0] == 3:
+            shape.geo_ids.append(dimtag[1])
+    factory.synchronize()
+    return shape
+
+def get_wedge_boundaries(infty=1e6):
+    """Get all front- and backside boundaries of a wedge.
+    WARNING: This may produce unexpected results, because low-level
+    information (surface masses) are used to get conclusions about the
+    mesh topology.
+
+    Args:
+        infty (float, optional): A real number greater than the model
+            extension. Defaults to 1e6.
+
+    Returns:
+        list: tags of front and back boundaries
+    """
+    front_side = [x[1] for x in factory.get_entities_in_bounding_box(-infty, -infty, 0, infty, infty, 0, dim=2)]
+    # There is no proper way to find back side of wedge, therefore mass is used for comparison.
+    masses = []
+    for tag in front_side:
+        masses.append(factory.get_mass(2, tag))
+    print(masses)
+    back_side = []
+    for tag in [x[1] for x in factory.get_entities(dim=2)]:
+        if tag not in front_side:
+            if factory.get_mass(2, tag) in masses:
+                back_side.append(tag)
+    return front_side + back_side
