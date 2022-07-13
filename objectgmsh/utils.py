@@ -351,6 +351,7 @@ def make_wedge(shape, angle=5):
     Returns:
         Shape: Modified 3D wedge shape object.
     """
+    factory.rotate(shape.dimtags, 0, 0, 0, 0, 1, 0, -angle*np.pi/180/2)
     dimtags = factory.revolve(
         shape.dimtags,
         0,
@@ -374,9 +375,6 @@ def make_wedge(shape, angle=5):
 
 def get_wedge_boundaries(infty=1e6):
     """Get all front- and backside boundaries of a wedge.
-    WARNING: This may produce unexpected results, because low-level
-    information (surface masses) are used to get conclusions about the
-    mesh topology.
 
     Args:
         infty (float, optional): A real number greater than the model
@@ -385,15 +383,6 @@ def get_wedge_boundaries(infty=1e6):
     Returns:
         list: tags of front and back boundaries
     """
-    front_side = [x[1] for x in factory.get_entities_in_bounding_box(-infty, -infty, 0, infty, infty, 0, dim=2)]
-    # There is no proper way to find back side of wedge, therefore mass is used for comparison.
-    masses = []
-    for tag in front_side:
-        masses.append(factory.get_mass(2, tag))
-    print(masses)
-    back_side = []
-    for tag in [x[1] for x in factory.get_entities(dim=2)]:
-        if tag not in front_side:
-            if factory.get_mass(2, tag) in masses:
-                back_side.append(tag)
+    front_side = [x[1] for x in factory.get_entities_in_bounding_box(-infty, -infty, -infty, infty, infty, 0, dim=2)]
+    back_side = [x[1] for x in factory.get_entities_in_bounding_box(-infty, -infty, 0, infty, infty, infty, dim=2)]
     return front_side + back_side
