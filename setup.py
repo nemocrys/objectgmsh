@@ -23,6 +23,7 @@ setuptools.setup(
     ],
     install_requires=[
         "gmsh",
+        "numpy"
     ],
     python_requires=">=3.7",
 )
