@@ -336,14 +336,31 @@ class Shape:
     def set_interface(self, shape):
         """Get to know the other shape and remove duplicate boundaries.
         Only required if shapes are in contact with each other (calls
-        fragment function).
+        fragment function). May be problematic if there are three shapes
+        sharing one point, see
+        https://gitlab.onelab.info/gmsh/gmsh/-/issues/2100. The safe way
+        is to set all interfaces at once using the function 
+        set_interfaces.
 
         Args:
             shape (Shape): Other shape that is in contact with this.
         """
-        # self.neighbors.append(shape)
-        # shape.neighbors.append(self)
         factory.fragment(self.dimtags, shape.dimtags)
+        factory.synchronize()
+
+    def set_interfaces(self, shapes):
+        """Get to know the other shapes and remove duplicate boundaries.
+        Only required if shapes are in contact with each other (calls
+        fragment function). See also set_interface function.
+
+        Args:
+            shape (list): List of other shapes that are in contact with
+            this.
+        """
+        dimtags = []
+        for shape in shapes:
+            dimtags += shape.dimtags
+        factory.fragment(self.dimtags, dimtags)
         factory.synchronize()
 
     def get_interface(self, shape):

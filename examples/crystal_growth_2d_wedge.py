@@ -24,9 +24,16 @@ crucible_hole = occ.addRectangle(0, -melt_h, 0, melt_r, cruc_hi)
 cut([(2, crucible)], [(2, crucible_hole)])
 crucible = make_wedge(Shape(model, 2, "crucible", [crucible]))
 
+
 # create connection between the shapes
 crystal.set_interface(melt)
 melt.set_interface(crucible)
+
+import gmsh
+for shape in model.get_shapes(3):
+    for bnd in shape.boundaries:
+        if bnd not in get_wedge_boundaries():
+            gmsh.model.mesh.set_recombine(2, bnd)
 
 # detect boundaries
 wedge_boundaries = get_wedge_boundaries()
@@ -62,16 +69,17 @@ if_crucible_melt = Shape(model, 2, "if_crucible_melt", crucible.get_interface(me
 
 # add physical groups
 model.make_physical()
+model.show()
 
 # set mesh constraints
 model.deactivate_characteristic_length()
 MeshControlConstant(model, 0.005, [crucible, melt])
 MeshControlConstant(model, 0.0025, [crystal])
-MeshControlExponential(
-    model, if_crystal_melt, 0.001, exp=1.7, shapes=[crystal, melt, crucible]
-)
+# MeshControlExponential(
+#     model, if_crystal_melt, 0.001, exp=1.7, shapes=[crystal, melt, crucible]
+# )
 
 # create mesh, show, export
-model.generate_mesh()
+model.generate_mesh(3)
 model.show()
 model.write_msh("crystal-growth-2D-wedge.msh")
