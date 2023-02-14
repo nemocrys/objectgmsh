@@ -498,6 +498,40 @@ class Shape:
             [x_max, x_max], [y_min, y_max], [z_min, z_max], one_only=True
         )
 
+    @property
+    def left_boundary_2(self):
+        """Boundary with lowest x coordinate (alternative implementation).
+        
+        Returns:
+            int: Tag of the boundary
+        """
+        bnd = self.boundaries
+        x_min = np.array([factory.get_bounding_box(self.dim - 1, b)[0] for b in bnd])
+        cnt = np.count_nonzero(x_min == x_min.min())
+        if cnt == 1:
+            return bnd[np.argmin(x_min)]
+        elif cnt == 0:
+            raise ObjectgmshError("Didn't find a matching boundary.")
+        else:
+            raise ObjectgmshError("Found more than one boundary.")
+
+    @property
+    def right_boundary_2(self):
+        """Boundary with highest x coordinate (alternative implementation).
+        
+        Returns:
+            int: Tag of the boundary
+        """
+        bnd = self.boundaries
+        x_max = np.array([factory.get_bounding_box(self.dim - 1, b)[3] for b in bnd])
+        cnt = np.count_nonzero(x_max == x_max.max())
+        if cnt == 1:
+            return bnd[np.argmax(x_max)]
+        elif cnt == 0:
+            raise ObjectgmshError("Didn't find a matching boundary.")
+        else:
+            raise ObjectgmshError("Found more than one boundary.")
+
     def set_characteristic_length(self, char_length):
         """Set caracteristic length recursively on all boundaries and
         their boundaries.
