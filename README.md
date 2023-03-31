@@ -1,4 +1,6 @@
 # objectmsh
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.7638149.svg)](https://doi.org/10.5281/zenodo.7638149)
+
 Object oriented Gmsh modeling.
 
 ## Project description
@@ -216,7 +218,7 @@ In case of questions just open an issue or contact Arved Enders-Seidlitz.
 
 ## Acknowledgements
 
-[This project](https://www.researchgate.net/project/NEMOCRYS-Next-Generation-Multiphysical-Models-for-Crystal-Growth-Processes) has received funding from the European Research Council (ERC) under the European Union's Horizon 2020 research and innovation programme (grant agreement No 851768).
+[This project](https://nemocrys.github.io/) has received funding from the European Research Council (ERC) under the European Union's Horizon 2020 research and innovation programme (grant agreement No 851768).
 
 <img src="https://raw.githubusercontent.com/nemocrys/objectgmsh/master/EU-ERC.png">
 
