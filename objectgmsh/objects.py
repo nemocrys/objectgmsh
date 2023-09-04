@@ -210,6 +210,11 @@ class Model:
             if shape.dim == 2:
                 sym_ax += shape.get_boundaries_in_box([0, 0], [-1e6, 1e6])
         return sym_ax
+    
+    @property
+    def max_dimension(self):
+        "Maximum dimension of shapes in this model."
+        return max([shape.dim for shape in self._shapes])
 
 
 class Shape:
@@ -707,12 +712,15 @@ class MeshControlLinear(MeshControl):
             edg = shape.geo_ids
         elif shape.dim == 2:
             edg = shape.boundaries
+            srf = shape.geo_ids
         elif shape.dim == 3:
             srf = shape.boundaries
 
         dist_field = field.add("Distance")
         field.setNumber(dist_field, "NNodesByEdge", NNodesByEdge)
         if shape.dim == 3:
+            field.setNumbers(dist_field, "FacesList", srf)
+        elif shape.dim == 2 and model.max_dimension == 3:
             field.setNumbers(dist_field, "FacesList", srf)
         else:
             field.setNumbers(dist_field, "EdgesList", edg)
@@ -769,12 +777,15 @@ class MeshControlExponential(MeshControl):
             edg = shape.geo_ids
         elif shape.dim == 2:
             edg = shape.boundaries
+            srf = shape.geo_ids
         elif shape.dim == 3:
             srf = shape.boundaries
 
         dist_field = gmsh.model.mesh.field.add("Distance")
         field.setNumber(dist_field, "NNodesByEdge", NNodesByEdge)
         if shape.dim == 3:
+            field.setNumbers(dist_field, "FacesList", srf)
+        elif shape.dim == 2 and model.max_dimension == 3:
             field.setNumbers(dist_field, "FacesList", srf)
         else:
             field.setNumbers(dist_field, "EdgesList", edg)
